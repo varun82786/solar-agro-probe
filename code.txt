@@ -1,0 +1,165 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ThingSpeak.h>
+/*
+
+const char* ssid = "Superior";
+const char* password = "bangaram";
+
+*/
+#define BLYNK_PRINT Serial
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+
+unsigned long myChannelNumber = 753329;
+const char*apiKey = "J2YOJ3SSWUJ2YTH1"; 
+const char* server = "api.thingspeak.com";
+
+char auth[] = "eXjGo2TO9aZ1j4Sy-UyWEebq8tlQ-SUx";
+char ssid[] = "Redmi";
+char pass[] = "31032005";
+
+float h;
+#include <OneWire.h> 
+#include <DallasTemperature.h>
+//#define Soil_Temp D0  
+//#include <DHT.h> 
+#include "dht.h"
+#define TH_Pin D0 
+dht DHT;
+//#define DHTPIN D0  
+//#define DHTTYPE DHT11  
+//DHT dht(DHTPIN, DHTTYPE); 
+
+//OneWire oneWire(Soil_Temp); 
+//DallasTemperature sensors(&oneWire);
+
+const int AirValue = 850;   
+const int WaterValue = 450;  
+const int friendlyAirValue = 0;   
+const int friendlyWaterValue = 100;
+
+int intervals = (AirValue - WaterValue)/3;   
+int soilMoistureValue = 0;
+float soilTemprature;
+
+ WiFiClient client;
+
+ 
+ void setup(void) 
+{ 
+ Serial.begin(9600); 
+// sensors.begin(); 
+
+ pinMode(A0,INPUT);
+
+// dht.begin();
+ delay(10); 
+ Blynk.begin(auth, ssid, pass);
+  ThingSpeak.begin(client);
+
+
+/* 
+ Serial.print("Connecting to the Newtork");
+ WiFi.begin(ssid, password);
+ while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+ Serial.println("WiFi connected");  
+ */
+
+  }
+
+
+void loop() {  
+
+     Blynk.run();
+ //Serial.print(" Requesting temperatures..."); 
+ DHT.read11(TH_Pin);
+h = DHT.humidity; 
+float t = DHT.temperature;  
+float m = analogRead(A0);
+//float st= sensors.getTempCByIndex(0);
+  
+
+  /* if (client.connect(server,80))    
+                      {  
+                            
+                             String postStr = apiKey;
+                             postStr +="&field1=";
+                             postStr += String(st);
+                             postStr +="&field2=";
+                             postStr += String(t);
+                             postStr +="&field3=";
+                             postStr += String(h);
+                             postStr +="&field4=";
+                             postStr += String(m);
+                             postStr += "\r\n\r\n\r\n\r\n";
+ 
+                             client.print("POST /update HTTP/1.1\n");
+                             client.print("Host: api.thingspeak.com\n");
+                             client.print("Connection: close\n");
+                             client.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n");
+                             client.print("Content-Type: application/x-www-form-urlencoded\n");
+                             client.print("Content-Length: ");
+                             client.print(postStr.length());
+                             client.print("\n\n\n\n");
+                             client.print(postStr);
+ 
+                  }
+    client.stop();
+    */         
+  soilMoistureValue = m; 
+  Serial.print("Raw Moisture Values=");
+  Serial.println(soilMoistureValue);
+  Serial.print(" | ");
+  
+  int Value = map(soilMoistureValue, AirValue, WaterValue, friendlyAirValue, friendlyWaterValue);
+  
+  Serial.print("moisture content: ");
+  Serial.print(Value);
+  Serial.println("%");
+  
+Blynk.virtualWrite(V1, h);
+Blynk.virtualWrite(V2, t);
+Blynk.virtualWrite(V3, Value);
+  if(soilMoistureValue > WaterValue && soilMoistureValue < (WaterValue + intervals))
+{
+  Serial.println("    Soil is too wet");
+  Blynk.notify(" Soil is too wet");
+}
+else if(soilMoistureValue > (WaterValue + intervals) && soilMoistureValue < (AirValue - intervals))
+{
+  Serial.println("  The water level is ok");
+  Blynk.notify("The water level is ok");
+}
+else if(soilMoistureValue < AirValue && soilMoistureValue > (AirValue - intervals))
+{
+  Serial.println("  Start watering your plants");
+  Blynk.notify("Start watering your plants");
+}
+     
+ /*
+  sensors.requestTemperatures();
+  Serial.print("Soil Temperature is: "); 
+ Serial.print(st); 
+ Serial.println("C  ");
+*/
+    
+    Serial.print("Current atmospheric humidity = ");
+    Serial.print(h);
+    Serial.print("%  ");
+    Serial.print("Surrounding temperature = ");
+    Serial.print(t); 
+    Serial.println("C  ");
+
+   // ThingSpeak.writeField(myChannelNumber , 1, st ,apiKey);
+    ThingSpeak.writeField(myChannelNumber , 2, t , apiKey);
+    ThingSpeak.writeField(myChannelNumber , 3, h , apiKey);
+    ThingSpeak.writeField(myChannelNumber , 4, m , apiKey);
+    
+    delay(10000); 
+    
+} 
